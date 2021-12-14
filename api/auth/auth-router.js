@@ -1,11 +1,13 @@
 // Require `checkUsernameFree`, `checkUsernameExists` and `checkPasswordLength`
 // middleware functions from `auth-middleware.js`. You will need them here!
-const router = require('express').Router()
+const router = require("express").Router();
+const bcrypt = require("bcryptjs");
+const User = require("../users/users-model");
 const {
   checkPasswordLength,
   checkUsernameFree,
   checkUsernameExists,
-} = require('./auth-middleware')
+} = require("./auth-middleware");
 /**
   1 [POST] /api/auth/register { "username": "sue", "password": "1234" }
 
@@ -28,9 +30,20 @@ const {
     "message": "Password must be longer than 3 chars"
   }
  */
-  router.post('/register', checkUsernameFree, checkPasswordLength, (req, res, next) => {
-    res.json('register')
-  })
+router.post(
+  "/register",
+  checkUsernameFree,
+  checkPasswordLength,
+  (req, res, next) => {
+    const { username, password } = req.body;
+    const hash = bcrypt.hashSync(password, 8);
+    User.add({ username, password: hash })
+      .then((saved) => {
+        res.status(201).json(saved);
+      })
+      .catch(next);
+  }
+);
 
 /**
   2 [POST] /api/auth/login { "username": "sue", "password": "1234" }
@@ -47,10 +60,17 @@ const {
     "message": "Invalid credentials"
   }
  */
-  router.post('/login', checkUsernameExists, (req, res, next) => {
-    res.json('login')
-  })
-
+router.post("/login", checkUsernameExists, (req, res, next) => {
+  const { password } = req.body;
+  if (bcrypt.compareSync(password, req.loggedIn.password)) {
+    //make it so the cookie is set on the client
+    // make it so server stores a session with a session_id
+    req.session.user = req.loggedIn;
+    res.json({ message: `Welcome ${req.loggedIn.username}!` });
+  } else {
+    next({ status: 401, message: "Invalid credentials" });
+  }
+});
 /**
   3 [GET] /api/auth/logout
 
@@ -66,9 +86,9 @@ const {
     "message": "no session"
   }
  */
-  router.get('/logout', (req, res, next) => {
-    res.json('logout')
-  })
- 
+router.get("/logout", (req, res, next) => {
+  res.json("logout");
+});
+
 // Don't forget to add the router to the `exports` object so it can be required in other modules
 module.exports = router;

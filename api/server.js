@@ -23,7 +23,7 @@ const knex = require("../data/db-config");
 
 const server = express();
 
-server.user(
+server.use(
   session({
     name: "chocolatechip",
     secret: process.env.SECRET || "shh",
